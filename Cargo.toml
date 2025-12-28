@@ -1,0 +1,21 @@
+[package]
+name = "consta"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+clap = { version = "4.4", features = ["derive"] }
+chrono = { version = "0.4", features = ["serde"] }
+regex = "1"
+rayon = "1"
+comfy-table = "7"
+
+[lints.rust]
+unsafe_code = "forbid"
+unused = { level = "deny", priority = -1 }
+rust_2018_idioms = { level = "deny", priority = -1 }
+
+[lints.clippy]
+all = "deny"
+pedantic = "deny"
+nursery = "deny"
