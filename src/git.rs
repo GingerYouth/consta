@@ -1,5 +1,5 @@
 use crate::cli::Args;
-use crate::model::RepoStats;
+use crate::model::{Commit, RepoStats};
 use std::process::Command;
 
 #[must_use]
@@ -11,7 +11,7 @@ fn collect_repo(path: &std::path::PathBuf, args: &Args) -> RepoStats {
     check_validity(path);
 
     let mut numstat_request = Command::new("git");
-    numstat_request.arg("log").arg("--numstat").arg("--pretty=format:commit %H");
+    numstat_request.arg("log").arg("--numstat").arg("--pretty=format:commit %H|%cI|%s");
 
     if !args.author.trim().is_empty() {
         numstat_request.arg("--author").arg(&args.author);
@@ -44,7 +44,14 @@ fn collect_repo(path: &std::path::PathBuf, args: &Args) -> RepoStats {
     let mut commits = 0usize;
     let mut added = 0usize;
     let mut deleted = 0usize;
-    let entries = vec![];
+    let mut entries = Vec::new();
+
+    // current commit accumulator
+    let mut cur_hash = String::new();
+    let mut cur_date = String::new();
+    let mut cur_message = String::new();
+    let mut cur_added = 0usize;
+    let mut cur_deleted = 0usize;
 
     for line in text.lines() {
         let line = line.trim();
@@ -52,6 +59,23 @@ fn collect_repo(path: &std::path::PathBuf, args: &Args) -> RepoStats {
             continue;
         }
         if line.starts_with("commit ") {
+            if !cur_hash.is_empty() {
+                entries.push(Commit {
+                    hash: cur_hash.clone(),
+                    date: cur_date.clone(),
+                    message: cur_message.clone(),
+                    added: cur_added as u64,
+                    deleted: cur_deleted as u64,
+                });
+                cur_added = 0;
+                cur_deleted = 0;
+            }
+            if let Some(rest) = line.strip_prefix("commit ") {
+                let mut parts = rest.splitn(3, '|');
+                cur_hash = parts.next().unwrap_or_default().to_string();
+                cur_date = parts.next().unwrap_or_default().to_string();
+                cur_message = parts.next().unwrap_or_default().to_string();
+            }
             commits += 1;
             continue;
         }
@@ -59,9 +83,23 @@ fn collect_repo(path: &std::path::PathBuf, args: &Args) -> RepoStats {
         // handle binary files where add/del can be "-"
         let mut parts = line.split_whitespace();
         if let (Some(a), Some(d)) = (parts.next(), parts.next()) {
-            added += a.parse::<usize>().unwrap_or(0);
-            deleted += d.parse::<usize>().unwrap_or(0);
+            let a_num = a.parse::<usize>().unwrap_or(0);
+            let d_num = d.parse::<usize>().unwrap_or(0);
+            cur_added += a_num;
+            cur_deleted += d_num;
+            added += a_num;
+            deleted += d_num;
         }
+    }
+
+    if !cur_hash.is_empty() {
+        entries.push(Commit {
+            hash: cur_hash,
+            date: cur_date,
+            message: cur_message,
+            added: cur_added as u64,
+            deleted: cur_deleted as u64,
+        });
     }
 
     RepoStats { path: path.clone(), commits, added, deleted, entries }
