@@ -32,10 +32,10 @@ fn collect_repo(path: &std::path::PathBuf, args: &Args) -> RepoStats {
         _ => {
             return RepoStats {
                 path: path.clone(),
-                commits: 0,
+                commits_amount: 0,
                 added: 0,
                 deleted: 0,
-                entries: vec![],
+                commits: vec![],
             };
         }
     };
@@ -102,7 +102,7 @@ fn collect_repo(path: &std::path::PathBuf, args: &Args) -> RepoStats {
         });
     }
 
-    RepoStats { path: path.clone(), commits, added, deleted, entries }
+    RepoStats { path: path.clone(), commits_amount: commits, added, deleted, commits: entries }
 }
 
 fn check_validity(path: &std::path::PathBuf) {
