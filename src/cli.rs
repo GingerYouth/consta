@@ -13,9 +13,6 @@ pub struct Args {
     pub until: Option<String>,
 
     #[arg(long)]
-    pub include_merges: bool,
-
-    #[arg(long)]
     pub breakdown: bool,
 
     #[arg(required = true)]
