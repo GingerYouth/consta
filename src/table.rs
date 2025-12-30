@@ -1,6 +1,7 @@
 use crate::model::RepoStats;
 use comfy_table::{Attribute, Cell, Color, Table, presets};
 use std::path::Path;
+use colored::Colorize;
 
 pub fn print_summary(stats: &[RepoStats], breakdown: bool) {
     let mut table = Table::new();
@@ -40,9 +41,17 @@ pub fn print_summary(stats: &[RepoStats], breakdown: bool) {
 
 fn print_breakdown(stats: &[RepoStats]) {
     for repo in stats {
-        println!("\n{}", project_name(&repo.path));
-        for c in &repo.entries {
-            println!("- {} {} (+{} / -{})", &c.hash[..7], c.message, c.added, c.deleted);
+        if !repo.entries.is_empty() {
+            println!("\n{}", project_name(&repo.path).green());
+            for c in &repo.entries {
+                println!(
+                    "- {} {} (+{} / -{})",
+                    &c.hash[..7].to_string().purple(),
+                    c.message,
+                    c.added.to_string().green(),
+                    c.deleted.to_string().red()
+                );
+            }
         }
     }
 }
