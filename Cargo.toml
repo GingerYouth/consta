@@ -2,6 +2,7 @@
 name = "consta"
 version = "0.1.0"
 edition = "2024"
+repository = "https://github.com/GingerYouth/consta"
 
 [dependencies]
 clap = { version = "4.4", features = ["derive"] }
@@ -20,3 +21,8 @@ rust_2018_idioms = { level = "deny", priority = -1 }
 all = "deny"
 pedantic = "deny"
 nursery = "deny"
+
+# The profile that 'dist' will build with
+[profile.dist]
+inherits = "release"
+lto = "thin"
