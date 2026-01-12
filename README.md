@@ -1,5 +1,5 @@
 # ***Con***tribution ***Sta***tistics
-CLI tool to get git contribution statistics for multiple repos.
+CLI tool to get git contribution statistics for multiple repos. The project was born from the desire to track this stats for non-github/gitlab projects.
 
 ![output.png](output.png)
 ![grid.png](grid.png)
