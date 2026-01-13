@@ -90,18 +90,14 @@ pub fn print_grid(stats: &[RepoStats], year: Option<i32>) {
     }
 
     // Calculate start and end dates for the grid
-    let jan_1 = NaiveDate::from_ymd_opt(year, 1, 1)
-        .unwrap_or_else(|| panic!("Invalid year: {year}"));
+    let jan_1 =
+        NaiveDate::from_ymd_opt(year, 1, 1).unwrap_or_else(|| panic!("Invalid year: {year}"));
 
     // If it's the current year, end at today, otherwise end at Dec 31
     let today = Local::now().naive_local().date();
     let dec_31 = NaiveDate::from_ymd_opt(year, 12, 31).unwrap();
 
-    let end_date = if year == today.year() {
-        today
-    } else {
-        dec_31
-    };
+    let end_date = if year == today.year() { today } else { dec_31 };
 
     // Find the Sunday on or before January 1st to align the grid
     let days_from_sunday = jan_1.weekday().num_days_from_sunday();
@@ -109,11 +105,11 @@ pub fn print_grid(stats: &[RepoStats], year: Option<i32>) {
 
     // Calculate number of weeks to display using integer arithmetic to avoid casts
     let days_until_end = (end_date - start_date).num_days();
-    let days_until_end_u64 = u64::try_from(days_until_end.max(0))
-        .expect("Amount of days until end should fit in u64");
+    let days_until_end_u64 =
+        u64::try_from(days_until_end.max(0)).expect("Amount of days until end should fit in u64");
     let weeks_to_display = days_until_end_u64.div_ceil(7);
-    let weeks_to_display = usize::try_from(weeks_to_display)
-        .expect("Amount of weeks should fit in usize");
+    let weeks_to_display =
+        usize::try_from(weeks_to_display).expect("Amount of weeks should fit in usize");
 
     // Track month changes
     let mut month_starts = vec![0]; // First week is always a start
@@ -188,7 +184,6 @@ pub fn print_grid(stats: &[RepoStats], year: Option<i32>) {
         get_activity_char(10)
     );
 }
-
 
 const fn get_activity_char(count: usize) -> &'static str {
     match count {
