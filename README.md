@@ -18,3 +18,4 @@ cargo run "C:\projects\ide-inspect-fix" "C:\projects\ide-inspect" "C:\updated\an
 * *since* \<date>
 * *until* \<date>
 * *breakdown*
+* *grid* \<year> 
