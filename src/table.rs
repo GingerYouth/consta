@@ -46,13 +46,15 @@ fn print_breakdown(stats: &[RepoStats]) {
         if !repo.commits.is_empty() {
             println!("\n{}", project_name(&repo.path).green());
             for c in &repo.commits {
-                println!(
-                    "- {} {} (+{} / -{})",
-                    &c.hash[..7].to_string().purple(),
-                    c.message,
-                    c.added.to_string().green(),
-                    c.deleted.to_string().red()
-                );
+                if c.added != 0 || c.deleted != 0 {
+                    println!(
+                        "- {} {} (+{} / -{})",
+                        &c.hash[..7].to_string().purple(),
+                        c.message,
+                        c.added.to_string().green(),
+                        c.deleted.to_string().red()
+                    );
+                }
             }
         }
     }
