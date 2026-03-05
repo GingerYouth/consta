@@ -17,4 +17,8 @@ pub struct Args {
 
     #[arg(required = true)]
     pub repos: Vec<std::path::PathBuf>,
+
+    // To get grid for specific year. If none - current year is shown.
+    #[arg(long)]
+    pub grid: Option<i32>,
 }

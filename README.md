@@ -1,16 +1,21 @@
 # ***Con***tribution ***Sta***tistics
-CLI tool to get git contribution statistics for multiple repos.
+CLI tool to get git contribution statistics for multiple repos. The project was born from the desire to track this stats for non-github/gitlab projects.
 
-## Usage example
+![output.png](output.png)
+![grid.png](grid.png)
+
+## Usage
+* Recommended to run from Git Bash 
+### If you have cargo installed:
 ```bash
 cargo run "C:\projects\ide-inspect-fix" "C:\projects\ide-inspect" "C:\updated\analysis-graphs" --author "00642383" --since "2025-12-20" --until "2025-12-29
 " --breakdown
 ```
-![output.png](output.png)
-![grid.png](grid.png)
+### If you don't have cargo installed, use release for your platform from [releases page](https://github.com/GingerYouth/consta/releases)
 
 ## CLI arguments:
 * *author* \<string>
 * *since* \<date>
 * *until* \<date>
 * *breakdown*
+* *grid* \<year> 
