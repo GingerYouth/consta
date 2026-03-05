@@ -46,13 +46,15 @@ fn print_breakdown(stats: &[RepoStats]) {
         if !repo.commits.is_empty() {
             println!("\n{}", project_name(&repo.path).green());
             for c in &repo.commits {
-                println!(
-                    "- {} {} (+{} / -{})",
-                    &c.hash[..7].to_string().purple(),
-                    c.message,
-                    c.added.to_string().green(),
-                    c.deleted.to_string().red()
-                );
+                if c.added != 0 || c.deleted != 0 {
+                    println!(
+                        "- {} {} (+{} / -{})",
+                        &c.hash[..7].to_string().purple(),
+                        c.message,
+                        c.added.to_string().green(),
+                        c.deleted.to_string().red()
+                    );
+                }
             }
         }
     }
@@ -69,10 +71,11 @@ fn project_name(path: &Path) -> String {
 ///
 /// Panics if January 1st cannot be constructed for the current year
 /// (this should never happen for valid calendar years).
-pub fn print_grid(stats: &[RepoStats]) {
-    println!("\n{}", "Contribution Activity Grid".green());
+pub fn print_grid(stats: &[RepoStats], year: Option<i32>) {
+    let year = year.unwrap_or_else(|| Local::now().year());
+    println!("\n{}", format!("Contribution Activity Grid - {year}").green());
 
-    // Collect all commits by date
+    // Collect all commits by date for the selected year
     let mut commits_by_date: HashMap<NaiveDate, usize> = HashMap::new();
 
     for repo in stats {
@@ -80,22 +83,35 @@ pub fn print_grid(stats: &[RepoStats]) {
             if let Some(date_str) = commit.date.split('T').next()
                 && let Ok(date) = NaiveDate::parse_from_str(date_str, "%Y-%m-%d")
             {
-                *commits_by_date.entry(date).or_insert(0) += 1;
+                // Only include commits from the specified year
+                if date.year() == year {
+                    *commits_by_date.entry(date).or_insert(0) += 1;
+                }
             }
         }
     }
 
+    // Calculate start and end dates for the grid
+    let jan_1 =
+        NaiveDate::from_ymd_opt(year, 1, 1).unwrap_or_else(|| panic!("Invalid year: {year}"));
+
+    // If it's the current year, end at today, otherwise end at Dec 31
     let today = Local::now().naive_local().date();
-    // Start from January 1st of the current year
-    let jan_1 = NaiveDate::from_ymd_opt(today.year(), 1, 1).unwrap();
+    let dec_31 = NaiveDate::from_ymd_opt(year, 12, 31).unwrap();
+
+    let end_date = if year == today.year() { today } else { dec_31 };
+
     // Find the Sunday on or before January 1st to align the grid
     let days_from_sunday = jan_1.weekday().num_days_from_sunday();
     let start_date = jan_1 - Duration::days(i64::from(days_from_sunday));
 
-    // Calculate number of weeks to display
-    let days = (today - start_date).num_days() / 7;
+    // Calculate number of weeks to display using integer arithmetic to avoid casts
+    let days_until_end = (end_date - start_date).num_days();
+    let days_until_end_u64 =
+        u64::try_from(days_until_end.max(0)).expect("Amount of days until end should fit in u64");
+    let weeks_to_display = days_until_end_u64.div_ceil(7);
     let weeks_to_display =
-        usize::try_from(days).expect("number of weeks should be non-negative") + 1;
+        usize::try_from(weeks_to_display).expect("Amount of weeks should fit in usize");
 
     // Track month changes
     let mut month_starts = vec![0]; // First week is always a start
@@ -149,7 +165,7 @@ pub fn print_grid(stats: &[RepoStats]) {
                 prev_month = date.month();
             }
 
-            if date > today {
+            if date.year() != year || date > end_date {
                 print!("  ");
                 continue;
             }
