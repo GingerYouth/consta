@@ -1,13 +1,14 @@
 [package]
 name = "consta"
-version = "0.3.0"
+version = "0.4.0"
 edition = "2024"
+description = "Git contribution statistics tool"
+license = "MIT"
 repository = "https://github.com/GingerYouth/consta"
 
 [dependencies]
 clap = { version = "4.4", features = ["derive"] }
 chrono = { version = "0.4", features = ["serde"] }
-regex = "1"
 rayon = "1"
 comfy-table = "7"
 colored = "3"
