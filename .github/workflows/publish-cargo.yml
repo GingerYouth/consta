@@ -1,6 +1,10 @@
 name: Publish to crates.io
 on:
   workflow_call:
+    inputs:
+      plan:
+        required: true
+        type: string
 jobs:
   publish_cargo:
     runs-on: "ubuntu-22.04"
