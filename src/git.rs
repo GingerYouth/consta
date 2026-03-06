@@ -7,15 +7,8 @@ use std::process::Command;
 #[must_use]
 pub fn collect(args: &Args) -> Vec<RepoStats> {
     let paths: Vec<_> = args.recursive.map_or_else(
-        || args.repos
-            .iter()
-            .filter(|path| is_valid_repo(path, true))
-            .cloned()
-            .collect(),
-        |depth| args.repos
-            .iter()
-            .flat_map(|path| discover_repos(path, depth))
-            .collect(),
+        || args.repos.iter().filter(|path| is_valid_repo(path, true)).cloned().collect(),
+        |depth| args.repos.iter().flat_map(|path| discover_repos(path, depth)).collect(),
     );
 
     paths.par_iter().map(|path| collect_repo(path, args)).collect()

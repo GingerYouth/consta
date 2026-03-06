@@ -27,5 +27,5 @@ pub struct Args {
     pub recursive: Option<i32>,
 
     #[arg(long)]
-    pub debug: bool
+    pub debug: bool,
 }
