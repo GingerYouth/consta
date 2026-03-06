@@ -18,14 +18,16 @@ pub fn print_summary(stats: &[RepoStats], breakdown: bool) {
     ]);
 
     for r in stats {
-        table.add_row(vec![
-            project_name(&r.path),
-            format!("{}", r.added.saturating_sub(r.deleted)),
-            format!("+{}", r.added.to_string()),
-            format!("-{}", r.deleted.to_string()),
-            format!("{}", r.added.saturating_add(r.deleted)),
-            r.commits_amount.to_string(),
-        ]);
+        if r.added != 0 || r.deleted != 0 {
+            table.add_row(vec![
+                project_name(&r.path),
+                format!("{}", r.added.saturating_sub(r.deleted)),
+                format!("+{}", r.added.to_string()),
+                format!("-{}", r.deleted.to_string()),
+                format!("{}", r.added.saturating_add(r.deleted)),
+                r.commits_amount.to_string(),
+            ]);
+        }
     }
 
     table.add_row(vec![

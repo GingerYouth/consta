@@ -1,15 +1,51 @@
 use crate::cli::Args;
 use crate::model::{Commit, RepoStats};
+use rayon::prelude::*;
+use std::path::PathBuf;
 use std::process::Command;
 
 #[must_use]
 pub fn collect(args: &Args) -> Vec<RepoStats> {
-    args.repos.iter().map(|path| collect_repo(path, args)).collect()
+    let paths: Vec<_> = args.recursive.map_or_else(
+        || args.repos
+            .iter()
+            .filter(|path| is_valid_repo(path, true))
+            .cloned()
+            .collect(),
+        |depth| args.repos
+            .iter()
+            .flat_map(|path| discover_repos(path, depth))
+            .collect(),
+    );
+
+    paths.par_iter().map(|path| collect_repo(path, args)).collect()
 }
 
-fn collect_repo(path: &std::path::PathBuf, args: &Args) -> RepoStats {
-    check_validity(path);
+fn discover_repos(root: &PathBuf, depth: i32) -> Vec<PathBuf> {
+    if root.join(".git").exists() {
+        return vec![root.clone()];
+    }
 
+    if depth == 0 || !root.is_dir() {
+        return vec![];
+    }
+
+    let Ok(entries) = std::fs::read_dir(root) else {
+        return vec![];
+    };
+
+    let mut result = Vec::new();
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.is_dir() {
+            result.extend(discover_repos(&path, depth - 1));
+        }
+    }
+
+    result
+}
+
+fn collect_repo(path: &PathBuf, args: &Args) -> RepoStats {
     let mut numstat_request = Command::new("git");
     numstat_request.arg("log").arg("--numstat").arg("--pretty=format:commit %H|%cI|%s");
 
@@ -105,12 +141,15 @@ fn collect_repo(path: &std::path::PathBuf, args: &Args) -> RepoStats {
     RepoStats { path: path.clone(), commits_amount: commits, added, deleted, commits: entries }
 }
 
-fn check_validity(path: &std::path::PathBuf) {
-    assert!(
-        !(!path.exists() || !path.is_dir()),
-        "Repository path does not exist or is not a directory: {:?}",
-        path.display()
-    );
+fn is_valid_repo(path: &PathBuf, strict: bool) -> bool {
+    if !path.exists() || !path.is_dir() {
+        assert!(
+            !strict,
+            "\x1b[31mRepository path does not exist or is not a directory: {}\x1b[0m",
+            path.display()
+        );
+        return false;
+    }
 
     let is_git_repo = if path.join(".git").exists() {
         true
@@ -128,5 +167,10 @@ fn check_validity(path: &std::path::PathBuf) {
         }
     };
 
-    assert!(is_git_repo, "{} is not a valid Git repository", path.display());
+    assert!(
+        !strict || is_git_repo,
+        "\x1b[31m{} is not a valid Git repository\x1b[0m",
+        path.display()
+    );
+    is_git_repo
 }
