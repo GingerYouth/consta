@@ -1,6 +1,6 @@
-use std::time::Instant;
 use clap::Parser;
 use consta::{cli::Args, git, table};
+use std::time::Instant;
 
 fn main() {
     let start = Instant::now();
