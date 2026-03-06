@@ -27,3 +27,7 @@ nursery = "deny"
 [profile.dist]
 inherits = "release"
 lto = "thin"
+
+[workspace.metadata.dist]
+cargo-dist-version = "0.30.3"
+publish-jobs = ["./publish-cargo"]
