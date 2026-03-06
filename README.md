@@ -5,13 +5,21 @@ CLI tool to get git contribution statistics for multiple repos. The project was 
 ![grid.png](grid.png)
 
 ## Usage
-* Recommended to run from Git Bash 
-### If you have cargo installed:
-```bash
-cargo run "C:\projects\ide-inspect-fix" "C:\projects\ide-inspect" "C:\updated\analysis-graphs" --author "00642383" --since "2025-12-20" --until "2025-12-29
-" --breakdown
+* Recommended to run from Git Bash (to avoid grid symbols)
+### If you have cargo (recommended):
+1) Install via:
 ```
-### If you don't have cargo installed, use latest release for your platform from [releases page](https://github.com/GingerYouth/consta/releases/latest)
+cargo install consta
+```
+2) Run by passing repos (or dirs with repos with `--recursive`), author and optional arguments, for example:
+```bash
+consta "C:\projects\" --author "00642383" --since "2026-01-01" --breakdown --recursive
+```
+### If you don't have cargo:
+1) Download the latest release for your platform from [releases page](https://github.com/GingerYouth/consta/releases/latest)
+
+2) Run executable as you would do in your OS, e.g.: `consta.exe <args>` on Windows
+
 
 ## CLI arguments:
 * *author* \<string>     : Filter commits by author name or email
