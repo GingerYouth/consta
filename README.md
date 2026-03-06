@@ -11,7 +11,7 @@ CLI tool to get git contribution statistics for multiple repos. The project was 
 cargo run "C:\projects\ide-inspect-fix" "C:\projects\ide-inspect" "C:\updated\analysis-graphs" --author "00642383" --since "2025-12-20" --until "2025-12-29
 " --breakdown
 ```
-### If you don't have cargo installed, use release for your platform from [releases page](https://github.com/GingerYouth/consta/releases)
+### If you don't have cargo installed, use latest release for your platform from [releases page](https://github.com/GingerYouth/consta/releases/latest)
 
 ## CLI arguments:
 * *author* \<string>
