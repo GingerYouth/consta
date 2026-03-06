@@ -5,7 +5,7 @@ CLI tool to get git contribution statistics for multiple repos. The project was 
 ![grid.png](grid.png)
 
 ## Usage
-* Recommended to run from Git Bash (to avoid grid symbols)
+* Recommended to run from Git Bash (to avoid incorrect display of grid symbols).
 ### If you have cargo (recommended):
 1) Install via:
 ```
