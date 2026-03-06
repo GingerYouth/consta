@@ -13,6 +13,7 @@ pub fn print_summary(stats: &[RepoStats], breakdown: bool) {
         Cell::new("LoC").add_attribute(Attribute::Bold).fg(Color::Green),
         Cell::new("added").add_attribute(Attribute::Bold).fg(Color::Green),
         Cell::new("deleted").add_attribute(Attribute::Bold).fg(Color::Green),
+        Cell::new("HoC").add_attribute(Attribute::Bold).fg(Color::Green),
         Cell::new("commits").add_attribute(Attribute::Bold).fg(Color::Green),
     ]);
 
@@ -22,6 +23,7 @@ pub fn print_summary(stats: &[RepoStats], breakdown: bool) {
             format!("{}", r.added.saturating_sub(r.deleted)),
             format!("+{}", r.added.to_string()),
             format!("-{}", r.deleted.to_string()),
+            format!("{}", r.added.saturating_add(r.deleted)),
             r.commits_amount.to_string(),
         ]);
     }
@@ -31,6 +33,7 @@ pub fn print_summary(stats: &[RepoStats], breakdown: bool) {
         format!("{}", stats.iter().map(|r| r.added.saturating_sub(r.deleted)).sum::<usize>()),
         format!("+{}", stats.iter().map(|r| r.added).sum::<usize>()),
         format!("-{}", stats.iter().map(|r| r.deleted).sum::<usize>()),
+        format!("{}", stats.iter().map(|r| r.added.saturating_add(r.deleted)).sum::<usize>()),
         stats.iter().map(|r| r.commits_amount).sum::<usize>().to_string(),
     ]);
 
