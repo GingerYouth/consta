@@ -3,7 +3,12 @@ use clap::Parser;
 #[derive(Parser, Debug)]
 #[command(name = "consta", about = "Git contribution statistics tool")]
 pub struct Args {
-    #[arg(short, long, required = true, help = "Filter commits by author name or email (repeatable)")]
+    #[arg(
+        short,
+        long,
+        required = true,
+        help = "Filter commits by author name or email (repeatable)"
+    )]
     pub author: Vec<String>,
 
     #[arg(long, help = "Show commits after this date (e.g. 2026-01-01)")]
