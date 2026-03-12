@@ -12,12 +12,11 @@ fn main() {
 
     for input in &args.repos {
         if github::is_github_url(input) {
-            match github::GitHubRepo::parse(input) {
-                Some(repo) => github_repos.push(repo),
-                None => {
-                    eprintln!("\x1b[31mCould not parse GitHub URL: {input}\x1b[0m");
-                    std::process::exit(1);
-                }
+            if let Some(repo) = github::GitHubRepo::parse(input) {
+                github_repos.push(repo);
+            } else {
+                eprintln!("\x1b[31mCould not parse GitHub URL: {input}\x1b[0m");
+                std::process::exit(1);
             }
         } else {
             local_paths.push(PathBuf::from(input));
