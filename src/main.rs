@@ -7,7 +7,6 @@ fn main() {
     let start = Instant::now();
     let args = Args::parse();
 
-    // Partition inputs into local paths and GitHub URLs.
     let mut local_paths = Vec::new();
     let mut github_repos = Vec::new();
 
@@ -25,7 +24,6 @@ fn main() {
         }
     }
 
-    // Breakdown is not supported for remote repos (no per-commit stats).
     if args.breakdown && !github_repos.is_empty() {
         eprintln!(
             "\x1b[31m--breakdown is not supported for remote GitHub repositories.\n\
@@ -34,14 +32,14 @@ fn main() {
         std::process::exit(1);
     }
 
-    // Collect local stats.
+    // Collect local stats
     let t = Instant::now();
     let mut stats = git::collect(&local_paths, &args);
     if args.debug && !local_paths.is_empty() {
         eprintln!("[local] collected {} repos in {:.2?}", stats.len(), t.elapsed());
     }
 
-    // Collect GitHub stats.
+    // Collect GitHub stats
     for repo in &github_repos {
         let t = Instant::now();
         match github::collect_repo(repo, &args) {

@@ -1,5 +1,6 @@
 use crate::cli::Args;
 use crate::model::{Commit, RepoStats};
+use std::fmt::Write;
 use std::path::PathBuf;
 
 const GITHUB_API: &str = "https://api.github.com";
@@ -19,6 +20,7 @@ impl GitHubRepo {
     ///  - `https://github.com/owner/repo`
     ///  - `https://github.com/owner/repo.git`
     ///  - `https://github.com/owner/repo/tree/...` (extra segments ignored)
+    #[must_use]
     pub fn parse(input: &str) -> Option<Self> {
         let trimmed = input.trim().trim_end_matches('/');
 
@@ -35,18 +37,21 @@ impl GitHubRepo {
     }
 
     /// Returns a display string like `owner/repo`.
+    #[must_use]
     pub fn full_name(&self) -> String {
         format!("{}/{}", self.owner, self.name)
     }
 
     /// Returns a synthetic `PathBuf` used to fill `RepoStats.path`
     /// so that the table display shows `owner/repo`.
+    #[must_use]
     pub fn as_display_path(&self) -> PathBuf {
         PathBuf::from(self.full_name())
     }
 }
 
 /// Returns `true` if the input looks like a GitHub URL.
+#[must_use]
 pub fn is_github_url(input: &str) -> bool {
     let t = input.trim().to_lowercase();
     t.starts_with("https://github.com/") || t.starts_with("http://github.com/")
@@ -56,6 +61,14 @@ pub fn is_github_url(input: &str) -> bool {
 ///
 /// - `/stats/contributors` → add/delete totals (single request)
 /// - `/commits?author=` → commit dates for grid + commit count (paginated)
+///
+/// # Errors
+/// Returns an error if:
+/// - No GitHub token is found (via `--token` arg or `GITHUB_TOKEN`/`GH_TOKEN` env vars)
+/// - The contributor stats endpoint fails or returns 404/204
+/// - No matching author is found among the repository's contributors
+/// - The commits endpoint returns a non-200 status
+/// - Any API response fails to parse as JSON
 pub fn collect_repo(repo: &GitHubRepo, args: &Args) -> Result<RepoStats, String> {
     let token = resolve_token(args)?;
     let agent = build_agent();
@@ -87,15 +100,11 @@ pub fn collect_repo(repo: &GitHubRepo, args: &Args) -> Result<RepoStats, String>
     })
 }
 
-// ---------------------------------------------------------------------------
-// Internal helpers
-// ---------------------------------------------------------------------------
-
 fn resolve_token(args: &Args) -> Result<String, String> {
-    if let Some(ref t) = args.token {
-        if !t.trim().is_empty() {
-            return Ok(t.clone());
-        }
+    if let Some(ref t) = args.token
+        && !t.trim().is_empty()
+    {
+        return Ok(t.clone());
     }
     std::env::var("GITHUB_TOKEN").or_else(|_| std::env::var("GH_TOKEN")).map_err(|_| {
         "GitHub token required. Pass --token <TOKEN> or set GITHUB_TOKEN / GH_TOKEN env var."
@@ -174,8 +183,8 @@ fn fetch_contributor_stats(
                 let mut added = 0usize;
                 let mut deleted = 0usize;
                 for week in weeks {
-                    added += week["a"].as_u64().unwrap_or(0) as usize;
-                    deleted += week["d"].as_u64().unwrap_or(0) as usize;
+                    added += usize::try_from(week["a"].as_u64().unwrap_or(0)).unwrap_or(0);
+                    deleted += usize::try_from(week["d"].as_u64().unwrap_or(0)).unwrap_or(0);
                 }
                 return Ok((added, deleted));
             }
@@ -206,19 +215,19 @@ fn fetch_commit_list(
             let mut url = format!("{base_url}?per_page={PER_PAGE}&page={page}");
 
             if !author.trim().is_empty() {
-                url.push_str(&format!("&author={}", urlencoding(author.trim())));
+                let _ = write!(url, "&author={}", urlencoding(author.trim()));
             }
-            if let Some(ref since) = args.since {
-                if !since.trim().is_empty() {
-                    let iso = to_iso_timestamp(since.trim());
-                    url.push_str(&format!("&since={iso}"));
-                }
+            if let Some(ref since) = args.since
+                && !since.trim().is_empty()
+            {
+                let iso = to_iso_timestamp(since.trim());
+                let _ = write!(url, "&since={iso}");
             }
-            if let Some(ref until) = args.until {
-                if !until.trim().is_empty() {
-                    let iso = to_iso_timestamp(until.trim());
-                    url.push_str(&format!("&until={iso}"));
-                }
+            if let Some(ref until) = args.until
+                && !until.trim().is_empty()
+            {
+                let iso = to_iso_timestamp(until.trim());
+                let _ = write!(url, "&until={iso}");
             }
 
             let resp = authed_get(agent, &url, token)?;
