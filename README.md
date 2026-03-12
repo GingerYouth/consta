@@ -17,7 +17,7 @@ Please, submit an issue if you encounter any issues with grid symbols in other t
 ## Examples
 1) Specified repositories:
 ```
-consta "C:\projects\project-name-1" "C:\projects\project-name-2" --author "andrei" --since "2026-01-01" --breakdown --recursive
+consta "C:\projects\project-name-1" "C:\projects\project-name-2" --author "andrei" --since "2026-01-01" --breakdown
 ```
 2) Recursive local repositories search:
 ```
