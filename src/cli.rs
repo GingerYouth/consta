@@ -3,8 +3,14 @@ use clap::Parser;
 #[derive(Parser, Debug)]
 #[command(name = "consta", about = "Git contribution statistics tool")]
 pub struct Args {
-    #[arg(short, long, help = "Filter commits by author name or email")]
-    pub author: String,
+    #[arg(
+        short,
+        long,
+        required = true,
+        num_args = 1..,
+        help = "Filter commits by author name or email (multiple allowed)"
+    )]
+    pub author: Vec<String>,
 
     #[arg(long, help = "Show commits after this date (e.g. 2026-01-01)")]
     pub since: Option<String>,
@@ -15,8 +21,8 @@ pub struct Args {
     #[arg(long, help = "Show commit breakdown")]
     pub breakdown: bool,
 
-    #[arg(required = true, help = "Paths to git repositories or enclosing directories")]
-    pub repos: Vec<std::path::PathBuf>,
+    #[arg(required = true, help = "Paths to git repositories, directories, or GitHub URLs")]
+    pub repos: Vec<String>,
 
     // To get grid for specific year. If none - current year is shown.
     #[arg(long, help = "Show activity grid for a specific year")]
@@ -28,4 +34,7 @@ pub struct Args {
 
     #[arg(long, help = "Print debug information")]
     pub debug: bool,
+
+    #[arg(long, help = "GitHub personal access token")]
+    pub token: Option<String>,
 }

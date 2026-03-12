@@ -5,13 +5,13 @@ use std::path::PathBuf;
 use std::process::Command;
 
 #[must_use]
-pub fn collect(args: &Args) -> Vec<RepoStats> {
-    let paths: Vec<_> = args.recursive.map_or_else(
-        || args.repos.iter().filter(|path| is_valid_repo(path, true)).cloned().collect(),
-        |depth| args.repos.iter().flat_map(|path| discover_repos(path, depth)).collect(),
+pub fn collect(paths: &[PathBuf], args: &Args) -> Vec<RepoStats> {
+    let resolved: Vec<_> = args.recursive.map_or_else(
+        || paths.iter().filter(|path| is_valid_repo(path, true)).cloned().collect(),
+        |depth| paths.iter().flat_map(|path| discover_repos(path, depth)).collect(),
     );
 
-    paths.par_iter().map(|path| collect_repo(path, args)).collect()
+    resolved.par_iter().map(|path| collect_repo(path, args)).collect()
 }
 
 fn discover_repos(root: &PathBuf, depth: i32) -> Vec<PathBuf> {
@@ -42,9 +42,12 @@ fn collect_repo(path: &PathBuf, args: &Args) -> RepoStats {
     let mut numstat_request = Command::new("git");
     numstat_request.arg("log").arg("--numstat").arg("--pretty=format:commit %H|%cI|%s");
 
-    if !args.author.trim().is_empty() {
-        numstat_request.arg("--author").arg(&args.author);
+    for author in &args.author {
+        if !author.trim().is_empty() {
+            numstat_request.arg("--author").arg(author);
+        }
     }
+
     if let Some(since) = &args.since
         && !since.trim().is_empty()
     {
