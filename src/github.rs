@@ -54,13 +54,22 @@ pub fn is_github_url(input: &str) -> bool {
 
 /// Collect stats for a single GitHub repository via the REST API.
 ///
-/// Fetches the commit list (paginated, per author), then for each commit
-/// fetches the single-commit detail to get additions/deletions.
-/// This avoids the `/stats/contributors` endpoint which misses authors
-/// without linked GitHub profiles.
+/// - `/stats/contributors` → add/delete totals (single request)
+/// - `/commits?author=` → commit dates for grid + commit count (paginated)
 pub fn collect_repo(repo: &GitHubRepo, args: &Args) -> Result<RepoStats, String> {
     let token = resolve_token(args)?;
     let agent = build_agent();
+
+    let t = std::time::Instant::now();
+    let (total_added, total_deleted) =
+        fetch_contributor_stats(&agent, &token, repo, &args.author, args.debug)?;
+    if args.debug {
+        eprintln!(
+            "  [github] {} contributor stats: {:.2?}",
+            repo.full_name(),
+            t.elapsed()
+        );
+    }
 
     let t = std::time::Instant::now();
     let commits = fetch_commit_list(&agent, &token, repo, args)?;
@@ -73,43 +82,12 @@ pub fn collect_repo(repo: &GitHubRepo, args: &Args) -> Result<RepoStats, String>
         );
     }
 
-    let mut total_added = 0usize;
-    let mut total_deleted = 0usize;
-
-    let t = std::time::Instant::now();
-    // Fetch per-commit stats via the single-commit endpoint.
-    let enriched: Vec<Commit> = commits
-        .into_iter()
-        .map(|c| {
-            let t_commit = std::time::Instant::now();
-            let (a, d) = fetch_commit_stats(&agent, &token, repo, &c.hash).unwrap_or((0, 0));
-            if args.debug {
-                eprintln!(
-                    "  [github] {} commit {}: {:.2?}",
-                    repo.full_name(),
-                    &c.hash[..7],
-                    t_commit.elapsed()
-                );
-            }
-            total_added += a;
-            total_deleted += d;
-            Commit { added: a as u64, deleted: d as u64, ..c }
-        })
-        .collect();
-    if args.debug {
-        eprintln!(
-            "  [github] {} all commit stats: {:.2?}",
-            repo.full_name(),
-            t.elapsed()
-        );
-    }
-
     Ok(RepoStats {
         path: repo.as_display_path(),
-        commits_amount: enriched.len(),
+        commits_amount: commits.len(),
         added: total_added,
         deleted: total_deleted,
-        commits: enriched,
+        commits,
     })
 }
 
@@ -146,33 +124,83 @@ fn authed_get(agent: &ureq::Agent, url: &str, token: &str) -> Result<ureq::Respo
         .map_err(|e| format!("GitHub API request failed: {e}"))
 }
 
-/// Fetch stats (additions, deletions) for a single commit via
-/// `GET /repos/{owner}/{repo}/commits/{sha}`.
-fn fetch_commit_stats(
+/// Fetch `/repos/{owner}/{repo}/stats/contributors` and extract totals for the
+/// matching author. Returns `(added, deleted)`.
+///
+/// This endpoint may return 202 (computing) on first call; we retry a few times.
+fn fetch_contributor_stats(
     agent: &ureq::Agent,
     token: &str,
     repo: &GitHubRepo,
-    sha: &str,
+    authors: &[String],
+    debug: bool,
 ) -> Result<(usize, usize), String> {
-    let url = format!("{GITHUB_API}/repos/{}/{}/commits/{sha}", repo.owner, repo.name);
-    let resp = authed_get(agent, &url, token)?;
+    let url = format!("{GITHUB_API}/repos/{}/{}/stats/contributors", repo.owner, repo.name);
+    let authors_lower: Vec<String> = authors.iter().map(|a| a.trim().to_lowercase()).collect();
 
-    if resp.status() != 200 {
-        return Ok((0, 0));
+    for attempt in 0..4 {
+        let resp = authed_get(agent, &url, token)?;
+        let status = resp.status();
+
+        if status == 202 {
+            let wait = std::time::Duration::from_secs(2u64.pow(attempt));
+            if debug {
+                eprintln!(
+                    "  [github] {} stats computing... retrying in {}s",
+                    repo.full_name(),
+                    wait.as_secs()
+                );
+            }
+            std::thread::sleep(wait);
+            continue;
+        }
+
+        if status == 204 || status == 404 {
+            return Err(format!(
+                "Repository {} not found or empty (HTTP {status})",
+                repo.full_name()
+            ));
+        }
+
+        let body: serde_json::Value =
+            resp.into_json().map_err(|e| format!("Failed to parse contributor stats: {e}"))?;
+
+        let contributors = body.as_array().ok_or("Unexpected contributor stats format")?;
+
+        for contributor in contributors {
+            let login = contributor["author"]["login"]
+                .as_str()
+                .unwrap_or("")
+                .to_lowercase();
+
+            let matches = authors_lower
+                .iter()
+                .any(|a| login.contains(a.as_str()) || a.contains(login.as_str()));
+
+            if matches {
+                let empty = vec![];
+                let weeks = contributor["weeks"].as_array().unwrap_or(&empty);
+                let mut added = 0usize;
+                let mut deleted = 0usize;
+                for week in weeks {
+                    added += week["a"].as_u64().unwrap_or(0) as usize;
+                    deleted += week["d"].as_u64().unwrap_or(0) as usize;
+                }
+                return Ok((added, deleted));
+            }
+        }
+
+        return Err(format!(
+            "No matching author found in contributors of {}",
+            repo.full_name()
+        ));
     }
 
-    let body: serde_json::Value =
-        resp.into_json().map_err(|e| format!("Failed to parse commit detail: {e}"))?;
-
-    let added = body["stats"]["additions"].as_u64().unwrap_or(0) as usize;
-    let deleted = body["stats"]["deletions"].as_u64().unwrap_or(0) as usize;
-
-    Ok((added, deleted))
+    Err(format!("GitHub stats not ready after retries for {}", repo.full_name()))
 }
 
 /// Fetch paginated commit list from `/repos/{owner}/{repo}/commits`.
-/// Returns lightweight `Commit` entries (hash, date, message) with zero stats
-/// — sufficient for the grid and commit count.
+/// Returns lightweight `Commit` entries (hash, date, message) — for grid and commit count.
 fn fetch_commit_list(
     agent: &ureq::Agent,
     token: &str,
@@ -184,10 +212,7 @@ fn fetch_commit_list(
     let mut all_commits = Vec::new();
     let mut seen_shas = std::collections::HashSet::new();
 
-    // GitHub /commits API accepts only one author, so query each and deduplicate.
-    let authors: Vec<&str> = args.author.iter().map(String::as_str).collect();
-
-    for author in &authors {
+    for author in &args.author {
         let mut page = 1u32;
         loop {
             let mut url = format!("{base_url}?per_page={PER_PAGE}&page={page}");
@@ -208,15 +233,17 @@ fn fetch_commit_list(
                 }
             }
 
-            let resp = authed_get(agent, &url, &token)?;
+            let resp = authed_get(agent, &url, token)?;
             let status = resp.status();
 
             if status == 409 {
-                // Empty repository
                 break;
             }
             if status != 200 {
-                return Err(format!("GitHub commits API returned HTTP {status} for {}", repo.full_name()));
+                return Err(format!(
+                    "GitHub commits API returned HTTP {status} for {}",
+                    repo.full_name()
+                ));
             }
 
             let body: serde_json::Value =
@@ -232,7 +259,10 @@ fn fetch_commit_list(
                 if seen_shas.contains(&sha) {
                     continue;
                 }
-                let date = item["commit"]["committer"]["date"].as_str().unwrap_or("").to_string();
+                let date = item["commit"]["committer"]["date"]
+                    .as_str()
+                    .unwrap_or("")
+                    .to_string();
                 let message = item["commit"]["message"]
                     .as_str()
                     .unwrap_or("")

@@ -25,6 +25,15 @@ fn main() {
         }
     }
 
+    // Breakdown is not supported for remote repos (no per-commit stats).
+    if args.breakdown && !github_repos.is_empty() {
+        eprintln!(
+            "\x1b[31m--breakdown is not supported for remote GitHub repositories.\n\
+             Remove the --breakdown flag, or use local clones instead.\x1b[0m"
+        );
+        std::process::exit(1);
+    }
+
     // Collect local stats.
     let t = Instant::now();
     let mut stats = git::collect(&local_paths, &args);
