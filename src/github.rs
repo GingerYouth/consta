@@ -64,11 +64,7 @@ pub fn collect_repo(repo: &GitHubRepo, args: &Args) -> Result<RepoStats, String>
     let (total_added, total_deleted) =
         fetch_contributor_stats(&agent, &token, repo, &args.author, args.debug)?;
     if args.debug {
-        eprintln!(
-            "  [github] {} contributor stats: {:.2?}",
-            repo.full_name(),
-            t.elapsed()
-        );
+        eprintln!("  [github] {} contributor stats: {:.2?}", repo.full_name(), t.elapsed());
     }
 
     let t = std::time::Instant::now();
@@ -101,12 +97,10 @@ fn resolve_token(args: &Args) -> Result<String, String> {
             return Ok(t.clone());
         }
     }
-    std::env::var("GITHUB_TOKEN")
-        .or_else(|_| std::env::var("GH_TOKEN"))
-        .map_err(|_| {
-            "GitHub token required. Pass --token <TOKEN> or set GITHUB_TOKEN / GH_TOKEN env var."
-                .to_string()
-        })
+    std::env::var("GITHUB_TOKEN").or_else(|_| std::env::var("GH_TOKEN")).map_err(|_| {
+        "GitHub token required. Pass --token <TOKEN> or set GITHUB_TOKEN / GH_TOKEN env var."
+            .to_string()
+    })
 }
 
 fn build_agent() -> ureq::Agent {
@@ -168,10 +162,7 @@ fn fetch_contributor_stats(
         let contributors = body.as_array().ok_or("Unexpected contributor stats format")?;
 
         for contributor in contributors {
-            let login = contributor["author"]["login"]
-                .as_str()
-                .unwrap_or("")
-                .to_lowercase();
+            let login = contributor["author"]["login"].as_str().unwrap_or("").to_lowercase();
 
             let matches = authors_lower
                 .iter()
@@ -190,10 +181,7 @@ fn fetch_contributor_stats(
             }
         }
 
-        return Err(format!(
-            "No matching author found in contributors of {}",
-            repo.full_name()
-        ));
+        return Err(format!("No matching author found in contributors of {}", repo.full_name()));
     }
 
     Err(format!("GitHub stats not ready after retries for {}", repo.full_name()))
@@ -259,10 +247,7 @@ fn fetch_commit_list(
                 if seen_shas.contains(&sha) {
                     continue;
                 }
-                let date = item["commit"]["committer"]["date"]
-                    .as_str()
-                    .unwrap_or("")
-                    .to_string();
+                let date = item["commit"]["committer"]["date"].as_str().unwrap_or("").to_string();
                 let message = item["commit"]["message"]
                     .as_str()
                     .unwrap_or("")
@@ -297,11 +282,7 @@ fn urlencoding(s: &str) -> String {
 /// If a date string looks like `YYYY-MM-DD`, append `T00:00:00Z` to make it
 /// ISO 8601 as required by the GitHub API.
 fn to_iso_timestamp(s: &str) -> String {
-    if s.contains('T') {
-        s.to_string()
-    } else {
-        format!("{s}T00:00:00Z")
-    }
+    if s.contains('T') { s.to_string() } else { format!("{s}T00:00:00Z") }
 }
 
 #[cfg(test)]
