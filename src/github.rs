@@ -74,17 +74,18 @@ pub fn collect_repo(repo: &GitHubRepo, args: &Args) -> Result<RepoStats, String>
     let agent = build_agent();
 
     let t = std::time::Instant::now();
-    let (total_added, total_deleted) =
-        fetch_contributor_stats(&agent, &token, repo, &args.author, args.debug)?;
-    if args.debug {
-        eprintln!("  [github] {} contributor stats: {:.2?}", repo.full_name(), t.elapsed());
-    }
 
-    let t = std::time::Instant::now();
-    let commits = fetch_commit_list(&agent, &token, repo, args)?;
+    let (stats_result, commits_result) = rayon::join(
+        || fetch_contributor_stats(&agent, &token, repo, &args.author, args.debug),
+        || fetch_commit_list(&agent, &token, repo, args),
+    );
+
+    let (total_added, total_deleted) = stats_result?;
+    let commits = commits_result?;
+
     if args.debug {
         eprintln!(
-            "  [github] {} commit list ({} commits): {:.2?}",
+            "  [github] {} stats + commits ({} commits): {:.2?}",
             repo.full_name(),
             commits.len(),
             t.elapsed()
