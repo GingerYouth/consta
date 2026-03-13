@@ -1,5 +1,6 @@
 use clap::Parser;
 use consta::{cli::Args, git, github, table};
+use rayon::prelude::*;
 use std::path::PathBuf;
 use std::time::Instant;
 
@@ -23,6 +24,7 @@ fn main() {
         }
     }
 
+    // Breakdown is not supported for remote repos (no per-commit stats).
     if args.breakdown && !github_repos.is_empty() {
         eprintln!(
             "\x1b[31m--breakdown is not supported for remote GitHub repositories.\n\
@@ -39,19 +41,20 @@ fn main() {
     }
 
     // Collect GitHub stats
-    for repo in &github_repos {
-        let t = Instant::now();
-        match github::collect_repo(repo, &args) {
-            Ok(s) => {
-                if args.debug {
-                    eprintln!("[github] {} total: {:.2?}", repo.full_name(), t.elapsed());
-                }
-                stats.push(s);
-            }
+    let t = Instant::now();
+    let github_results: Vec<_> =
+        github_repos.par_iter().map(|repo| (repo, github::collect_repo(repo, &args))).collect();
+
+    for (repo, result) in github_results {
+        match result {
+            Ok(s) => stats.push(s),
             Err(e) => {
                 eprintln!("\x1b[33m[warn] {}: {e}\x1b[0m", repo.full_name());
             }
         }
+    }
+    if args.debug && !github_repos.is_empty() {
+        eprintln!("[github] collected {} repos in {:.2?}", github_repos.len(), t.elapsed());
     }
 
     table::print_summary(&stats, args.breakdown);
