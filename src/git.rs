@@ -1,22 +1,22 @@
 use crate::cli::Args;
 use crate::model::{Commit, RepoStats};
 use rayon::prelude::*;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 
 #[must_use]
 pub fn collect(paths: &[PathBuf], args: &Args) -> Vec<RepoStats> {
     let resolved: Vec<_> = args.recursive.map_or_else(
         || paths.iter().filter(|path| is_valid_repo(path, true)).cloned().collect(),
-        |depth| paths.iter().flat_map(|path| discover_repos(path, depth)).collect(),
+        |depth| paths.iter().flat_map(|path| discover_repos(path.as_path(), depth)).collect(),
     );
 
     resolved.par_iter().map(|path| collect_repo(path, args)).collect()
 }
 
-fn discover_repos(root: &PathBuf, depth: i32) -> Vec<PathBuf> {
+fn discover_repos(root: &Path, depth: i32) -> Vec<PathBuf> {
     if root.join(".git").exists() {
-        return vec![root.clone()];
+        return vec![root.to_path_buf()];
     }
 
     if depth == 0 || !root.is_dir() {
@@ -31,7 +31,7 @@ fn discover_repos(root: &PathBuf, depth: i32) -> Vec<PathBuf> {
     for entry in entries.flatten() {
         let path = entry.path();
         if path.is_dir() {
-            result.extend(discover_repos(&path, depth - 1));
+            result.extend(discover_repos(path.as_path(), depth - 1));
         }
     }
 
@@ -137,7 +137,7 @@ fn collect_repo(path: &PathBuf, args: &Args) -> RepoStats {
     RepoStats { path: path.clone(), commits_amount: commits, added, deleted, commits: entries }
 }
 
-fn is_valid_repo(path: &PathBuf, strict: bool) -> bool {
+fn is_valid_repo(path: &Path, strict: bool) -> bool {
     if !path.exists() || !path.is_dir() {
         assert!(
             !strict,

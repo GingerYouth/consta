@@ -53,8 +53,11 @@ impl GitHubRepo {
 /// Returns `true` if the input looks like a GitHub URL.
 #[must_use]
 pub fn is_github_url(input: &str) -> bool {
-    let t = input.trim().to_lowercase();
-    t.starts_with("https://github.com/") || t.starts_with("http://github.com/")
+    let s = input.trim();
+    s.starts_with("https://github.com/")
+        || s.starts_with("http://github.com/")
+        || s.starts_with("HTTPS://GITHUB.COM/")
+        || s.starts_with("HTTP://GITHUB.COM/")
 }
 
 /// Collect stats for a single GitHub repository via the REST API.
@@ -75,8 +78,10 @@ pub fn collect_repo(repo: &GitHubRepo, args: &Args) -> Result<RepoStats, String>
 
     let t = std::time::Instant::now();
 
+    let authors_lower: Vec<String> = args.author.iter().filter(|a| !a.trim().is_empty()).map(|a| a.trim().to_lowercase()).collect();
+
     let (stats_result, commits_result) = rayon::join(
-        || fetch_contributor_stats(&agent, &token, repo, &args.author, args.debug),
+        || fetch_contributor_stats(&agent, &token, repo, &authors_lower, args.debug),
         || fetch_commit_list(&agent, &token, repo, args),
     );
 
@@ -136,11 +141,10 @@ fn fetch_contributor_stats(
     agent: &ureq::Agent,
     token: &str,
     repo: &GitHubRepo,
-    authors: &[String],
+    authors_lower: &[String],
     debug: bool,
 ) -> Result<(usize, usize), String> {
     let url = format!("{GITHUB_API}/repos/{}/{}/stats/contributors", repo.owner, repo.name);
-    let authors_lower: Vec<String> = authors.iter().map(|a| a.trim().to_lowercase()).collect();
 
     for attempt in 0..4 {
         let resp = authed_get(agent, &url, token)?;
@@ -179,13 +183,14 @@ fn fetch_contributor_stats(
                 .any(|a| login.contains(a.as_str()) || a.contains(login.as_str()));
 
             if matches {
-                let empty = vec![];
-                let weeks = contributor["weeks"].as_array().unwrap_or(&empty);
+                let Some(weeks) = contributor["weeks"].as_array() else {
+                    return Ok((0, 0));
+                };
                 let mut added = 0usize;
                 let mut deleted = 0usize;
                 for week in weeks {
-                    added += usize::try_from(week["a"].as_u64().unwrap_or(0)).unwrap_or(0);
-                    deleted += usize::try_from(week["d"].as_u64().unwrap_or(0)).unwrap_or(0);
+                    added += week["a"].as_u64().unwrap_or(0) as usize;
+                    deleted += week["d"].as_u64().unwrap_or(0) as usize;
                 }
                 return Ok((added, deleted));
             }
