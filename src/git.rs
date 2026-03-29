@@ -1,22 +1,22 @@
 use crate::cli::Args;
 use crate::model::{Commit, RepoStats};
 use rayon::prelude::*;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 
 #[must_use]
 pub fn collect(paths: &[PathBuf], args: &Args) -> Vec<RepoStats> {
     let resolved: Vec<_> = args.recursive.map_or_else(
         || paths.iter().filter(|path| is_valid_repo(path, true)).cloned().collect(),
-        |depth| paths.iter().flat_map(|path| discover_repos(path, depth)).collect(),
+        |depth| paths.iter().flat_map(|path| discover_repos(path.as_path(), depth)).collect(),
     );
 
     resolved.par_iter().map(|path| collect_repo(path, args)).collect()
 }
 
-fn discover_repos(root: &PathBuf, depth: i32) -> Vec<PathBuf> {
+fn discover_repos(root: &Path, depth: i32) -> Vec<PathBuf> {
     if root.join(".git").exists() {
-        return vec![root.clone()];
+        return vec![root.to_path_buf()];
     }
 
     if depth == 0 || !root.is_dir() {
@@ -31,7 +31,7 @@ fn discover_repos(root: &PathBuf, depth: i32) -> Vec<PathBuf> {
     for entry in entries.flatten() {
         let path = entry.path();
         if path.is_dir() {
-            result.extend(discover_repos(&path, depth - 1));
+            result.extend(discover_repos(path.as_path(), depth - 1));
         }
     }
 
@@ -74,16 +74,16 @@ fn collect_repo(path: &PathBuf, args: &Args) -> RepoStats {
 
     let text = String::from_utf8_lossy(&numstat_output.stdout);
     let mut commits = 0usize;
-    let mut added = 0usize;
-    let mut deleted = 0usize;
+    let mut added = 0u64;
+    let mut deleted = 0u64;
     let mut entries = Vec::new();
 
     // current commit accumulator
     let mut cur_hash = String::new();
     let mut cur_date = String::new();
     let mut cur_message = String::new();
-    let mut cur_added = 0usize;
-    let mut cur_deleted = 0usize;
+    let mut cur_added = 0u64;
+    let mut cur_deleted = 0u64;
 
     for line in text.lines() {
         let line = line.trim();
@@ -96,8 +96,8 @@ fn collect_repo(path: &PathBuf, args: &Args) -> RepoStats {
                     hash: cur_hash.clone(),
                     date: cur_date.clone(),
                     message: cur_message.clone(),
-                    added: cur_added as u64,
-                    deleted: cur_deleted as u64,
+                    added: cur_added,
+                    deleted: cur_deleted,
                 });
                 cur_added = 0;
                 cur_deleted = 0;
@@ -115,8 +115,8 @@ fn collect_repo(path: &PathBuf, args: &Args) -> RepoStats {
         // handle binary files where add/del can be "-"
         let mut parts = line.split_whitespace();
         if let (Some(a), Some(d)) = (parts.next(), parts.next()) {
-            let a_num = a.parse::<usize>().unwrap_or(0);
-            let d_num = d.parse::<usize>().unwrap_or(0);
+            let a_num = a.parse::<u64>().unwrap_or(0);
+            let d_num = d.parse::<u64>().unwrap_or(0);
             cur_added += a_num;
             cur_deleted += d_num;
             added += a_num;
@@ -129,15 +129,15 @@ fn collect_repo(path: &PathBuf, args: &Args) -> RepoStats {
             hash: cur_hash,
             date: cur_date,
             message: cur_message,
-            added: cur_added as u64,
-            deleted: cur_deleted as u64,
+            added: cur_added,
+            deleted: cur_deleted,
         });
     }
 
     RepoStats { path: path.clone(), commits_amount: commits, added, deleted, commits: entries }
 }
 
-fn is_valid_repo(path: &PathBuf, strict: bool) -> bool {
+fn is_valid_repo(path: &Path, strict: bool) -> bool {
     if !path.exists() || !path.is_dir() {
         assert!(
             !strict,

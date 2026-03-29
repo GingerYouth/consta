@@ -1,6 +1,6 @@
 use clap::Parser;
 
-#[derive(Parser, Debug)]
+#[derive(Parser, Debug, Default)]
 #[command(name = "consta", about = "Git contribution statistics tool")]
 pub struct Args {
     #[arg(
