@@ -1,5 +1,5 @@
-use std::fmt::Write;
 use git2::{Repository, Signature};
+use std::fmt::Write;
 use std::path::PathBuf;
 use tempfile::TempDir;
 
