@@ -1,6 +1,7 @@
 #![allow(clippy::cast_precision_loss, clippy::cast_possible_truncation)]
 
 use std::collections::HashMap;
+use std::fmt::Write;
 use std::hint::black_box;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
@@ -70,16 +71,11 @@ fn run_bench(name: &str, mut f: impl FnMut()) -> BenchResult {
 }
 
 fn find_arg(args: &[String], flag: &str) -> Option<String> {
-    args.iter()
-        .position(|a| a == flag)
-        .and_then(|i| args.get(i + 1))
-        .cloned()
+    args.iter().position(|a| a == flag).and_then(|i| args.get(i + 1)).cloned()
 }
 
 fn baseline_path(name: &str) -> PathBuf {
-    PathBuf::from("target")
-        .join("bench")
-        .join(format!("{name}.txt"))
+    PathBuf::from("target").join("bench").join(format!("{name}.txt"))
 }
 
 fn load_baseline(name: &str) -> Option<HashMap<String, f64>> {
@@ -89,10 +85,10 @@ fn load_baseline(name: &str) -> Option<HashMap<String, f64>> {
         if line.starts_with('#') || line.trim().is_empty() {
             continue;
         }
-        if let Some((bench_name, nanos_str)) = line.split_once('\t') {
-            if let Ok(nanos) = nanos_str.parse::<f64>() {
-                map.insert(bench_name.to_string(), nanos);
-            }
+        if let Some((bench_name, nanos_str)) = line.split_once('\t')
+            && let Ok(nanos) = nanos_str.parse::<f64>()
+        {
+            map.insert(bench_name.to_string(), nanos);
         }
     }
     Some(map)
@@ -105,7 +101,7 @@ fn save_baseline(name: &str, results: &[BenchResult]) {
     }
     let mut content = String::new();
     for r in results {
-        content.push_str(&format!("{}\t{}\n", r.name, r.median));
+        let _ = writeln!(content, "{}\t{}", r.name, r.median);
     }
     let _ = std::fs::write(&path, content);
 }
@@ -236,10 +232,7 @@ fn main() {
             "benchmark", "low", "median", "high", "change"
         );
     } else {
-        println!(
-            "  {:<35} {:>10} {:>10} {:>10}",
-            "benchmark", "low", "median", "high"
-        );
+        println!("  {:<35} {:>10} {:>10} {:>10}", "benchmark", "low", "median", "high");
     }
     println!("  {}", "─".repeat(w));
 

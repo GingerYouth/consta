@@ -32,10 +32,10 @@ pub fn print_summary(stats: &[RepoStats], breakdown: bool) {
 
     table.add_row(vec![
         "summary".to_string(),
-        format!("{}", stats.iter().map(|r| r.added.saturating_sub(r.deleted)).sum::<usize>()),
-        format!("+{}", stats.iter().map(|r| r.added).sum::<usize>()),
-        format!("-{}", stats.iter().map(|r| r.deleted).sum::<usize>()),
-        format!("{}", stats.iter().map(|r| r.added.saturating_add(r.deleted)).sum::<usize>()),
+        format!("{}", stats.iter().map(|r| r.added.saturating_sub(r.deleted)).sum::<u64>()),
+        format!("+{}", stats.iter().map(|r| r.added).sum::<u64>()),
+        format!("-{}", stats.iter().map(|r| r.deleted).sum::<u64>()),
+        format!("{}", stats.iter().map(|r| r.added.saturating_add(r.deleted)).sum::<u64>()),
         stats.iter().map(|r| r.commits_amount).sum::<usize>().to_string(),
     ]);
 

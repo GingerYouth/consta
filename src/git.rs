@@ -74,16 +74,16 @@ fn collect_repo(path: &PathBuf, args: &Args) -> RepoStats {
 
     let text = String::from_utf8_lossy(&numstat_output.stdout);
     let mut commits = 0usize;
-    let mut added = 0usize;
-    let mut deleted = 0usize;
+    let mut added = 0u64;
+    let mut deleted = 0u64;
     let mut entries = Vec::new();
 
     // current commit accumulator
     let mut cur_hash = String::new();
     let mut cur_date = String::new();
     let mut cur_message = String::new();
-    let mut cur_added = 0usize;
-    let mut cur_deleted = 0usize;
+    let mut cur_added = 0u64;
+    let mut cur_deleted = 0u64;
 
     for line in text.lines() {
         let line = line.trim();
@@ -96,8 +96,8 @@ fn collect_repo(path: &PathBuf, args: &Args) -> RepoStats {
                     hash: cur_hash.clone(),
                     date: cur_date.clone(),
                     message: cur_message.clone(),
-                    added: cur_added as u64,
-                    deleted: cur_deleted as u64,
+                    added: cur_added,
+                    deleted: cur_deleted,
                 });
                 cur_added = 0;
                 cur_deleted = 0;
@@ -115,8 +115,8 @@ fn collect_repo(path: &PathBuf, args: &Args) -> RepoStats {
         // handle binary files where add/del can be "-"
         let mut parts = line.split_whitespace();
         if let (Some(a), Some(d)) = (parts.next(), parts.next()) {
-            let a_num = a.parse::<usize>().unwrap_or(0);
-            let d_num = d.parse::<usize>().unwrap_or(0);
+            let a_num = a.parse::<u64>().unwrap_or(0);
+            let d_num = d.parse::<u64>().unwrap_or(0);
             cur_added += a_num;
             cur_deleted += d_num;
             added += a_num;
@@ -129,8 +129,8 @@ fn collect_repo(path: &PathBuf, args: &Args) -> RepoStats {
             hash: cur_hash,
             date: cur_date,
             message: cur_message,
-            added: cur_added as u64,
-            deleted: cur_deleted as u64,
+            added: cur_added,
+            deleted: cur_deleted,
         });
     }
 

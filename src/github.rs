@@ -78,7 +78,12 @@ pub fn collect_repo(repo: &GitHubRepo, args: &Args) -> Result<RepoStats, String>
 
     let t = std::time::Instant::now();
 
-    let authors_lower: Vec<String> = args.author.iter().filter(|a| !a.trim().is_empty()).map(|a| a.trim().to_lowercase()).collect();
+    let authors_lower: Vec<String> = args
+        .author
+        .iter()
+        .filter(|a| !a.trim().is_empty())
+        .map(|a| a.trim().to_lowercase())
+        .collect();
 
     let (stats_result, commits_result) = rayon::join(
         || fetch_contributor_stats(&agent, &token, repo, &authors_lower, args.debug),
@@ -143,7 +148,7 @@ fn fetch_contributor_stats(
     repo: &GitHubRepo,
     authors_lower: &[String],
     debug: bool,
-) -> Result<(usize, usize), String> {
+) -> Result<(u64, u64), String> {
     let url = format!("{GITHUB_API}/repos/{}/{}/stats/contributors", repo.owner, repo.name);
 
     for attempt in 0..4 {
@@ -186,11 +191,11 @@ fn fetch_contributor_stats(
                 let Some(weeks) = contributor["weeks"].as_array() else {
                     return Ok((0, 0));
                 };
-                let mut added = 0usize;
-                let mut deleted = 0usize;
+                let mut added = 0u64;
+                let mut deleted = 0u64;
                 for week in weeks {
-                    added += week["a"].as_u64().unwrap_or(0) as usize;
-                    deleted += week["d"].as_u64().unwrap_or(0) as usize;
+                    added += week["a"].as_u64().unwrap_or(0);
+                    deleted += week["d"].as_u64().unwrap_or(0);
                 }
                 return Ok((added, deleted));
             }
